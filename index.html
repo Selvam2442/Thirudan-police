@@ -112,7 +112,90 @@
             </div>
         </div>
     </div>
+
     <script>
+        // --- SYNTHESIZED SOUND ENGINE ---
+        let audioCtx = null;
+        
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            initAudio();
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } 
+            else if (type === 'beep') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(440, now); // A4
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } 
+            else if (type === 'go') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(880, now); // A5 (High pitch)
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            }
+            else if (type === 'correct') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(659.25, now); // E5
+                osc.frequency.setValueAtTime(880, now + 0.1); // A5
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+            else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.3);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+            else if (type === 'win') {
+                // Retro Arpeggio (Level Up Sound)
+                osc.type = 'square';
+                gain.gain.setValueAtTime(0.1, now);
+                
+                osc.frequency.setValueAtTime(440, now); // A4
+                osc.frequency.setValueAtTime(554.37, now + 0.1); // C#5
+                osc.frequency.setValueAtTime(659.25, now + 0.2); // E5
+                osc.frequency.setValueAtTime(880, now + 0.3); // A5
+                
+                gain.gain.linearRampToValueAtTime(0.1, now + 0.6);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 1.2);
+                
+                osc.start(now);
+                osc.stop(now + 1.2);
+            }
+        }
+
         // --- GAME CONSTANTS ---
         const ROLES = {
             RAJA: { id: 'raja', name: 'Raja', points: 1000, icon: 'fa-solid fa-crown', color: 'text-yellow-400', glow: 'shadow-yellow-500/50', border: 'border-yellow-500/30' },
@@ -140,6 +223,7 @@
 
         // --- FULLSCREEN LOGIC ---
         window.enterFullscreenAndStart = async function() {
+            playSound('click');
             try {
                 if (document.documentElement.requestFullscreen) {
                     await document.documentElement.requestFullscreen();
@@ -156,6 +240,7 @@
         };
 
         window.exitGame = async function() {
+            playSound('click');
             try {
                 if (document.exitFullscreen && document.fullscreenElement) {
                     await document.exitFullscreen();
@@ -164,6 +249,7 @@
                 }
             } catch(err) {}
             
+            if(state.timerInterval) clearInterval(state.timerInterval);
             state.gameState = 'LANDING';
             state.players = [];
             state.currentRound = 1;
@@ -172,6 +258,7 @@
 
         // --- GAME HANDLERS ---
         window.setPlayerCount = function(count) {
+            playSound('click');
             state.playerCount = count;
             const newNames = Array(count).fill('').map((_, i) => state.playerNames[i] || `Player ${i + 1}`);
             state.playerNames = newNames;
@@ -183,11 +270,13 @@
         };
 
         window.setTotalRounds = function(num) {
+            playSound('click');
             state.totalRounds = num;
             render();
         };
 
         window.startGame = function() {
+            playSound('click');
             const initialPlayers = state.playerNames.map((name, index) => ({
                 id: `p${index}`,
                 name: name.trim() || `Player ${index + 1}`,
@@ -209,15 +298,17 @@
             currentPlayersList.forEach((player, index) => {
                 newAssignedRoles[player.id] = shuffledRoles[index];
             });
+
             state.assignedRoles = newAssignedRoles;
             state.currentPlayerIndex = 0;
             state.guessResult = null;
             state.gameState = 'PASS';
-            window.scrollTo(0, 0); // Reset scroll to top
+            window.scrollTo(0, 0); 
             render();
         }
 
         window.startCountdown = function() {
+            playSound('beep'); // Initial beep for 3
             state.gameState = 'COUNTDOWN';
             state.countdown = 3;
             render();
@@ -226,15 +317,23 @@
             
             state.timerInterval = setInterval(() => {
                 state.countdown--;
-                if (state.countdown <= 0) {
+                if (state.countdown > 0) {
+                    playSound('beep');
+                    render();
+                } else if (state.countdown === 0) {
+                    playSound('go');
+                    render(); // Render GO!
                     clearInterval(state.timerInterval);
-                    state.gameState = 'REVEAL';
+                    setTimeout(() => {
+                        state.gameState = 'REVEAL';
+                        render();
+                    }, 800); // Wait slightly on GO before revealing
                 }
-                render();
             }, 1000);
         };
 
         window.handleNextPlayerPhase = function() {
+            playSound('click');
             if (state.currentPlayerIndex < state.playerCount - 1) {
                 state.currentPlayerIndex++;
                 state.gameState = 'PASS';
@@ -246,11 +345,17 @@
         };
 
         window.handlePoliceGuess = function(suspectId) {
-            if(state.guessResult) return; // Prevent double clicks
+            if(state.guessResult) return; 
 
             const thirudanId = Object.keys(state.assignedRoles).find(id => state.assignedRoles[id].id === 'thirudan');
             const isCorrect = suspectId === thirudanId;
             
+            if (isCorrect) {
+                playSound('correct');
+            } else {
+                playSound('wrong');
+            }
+
             state.guessResult = { correct: isCorrect, thirudanId };
 
             const updatedPlayers = state.players.map(player => {
@@ -278,9 +383,11 @@
 
         window.handleNextRound = function() {
             if (state.currentRound < state.totalRounds) {
+                playSound('click');
                 state.currentRound++;
                 startNewRound();
             } else {
+                playSound('win');
                 state.gameState = 'GAME_OVER';
                 window.scrollTo(0, 0);
                 render();
@@ -288,6 +395,8 @@
         };
 
         window.resetGame = function() {
+            playSound('click');
+            if(state.timerInterval) clearInterval(state.timerInterval);
             state.gameState = 'SETUP';
             state.currentRound = 1;
             window.scrollTo(0, 0);
@@ -317,7 +426,8 @@
                         Macha, intha game ah full screen la aadina than kick! Alert aagu!
                     </p>
                 </div>
-                                <button onclick="enterFullscreenAndStart()" class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-black text-lg sm:text-xl flex items-center justify-center gap-3 shadow-[0_0_25px_rgba(79,70,229,0.4)] transition-all active:scale-95">
+
+                <button onclick="enterFullscreenAndStart()" class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-black text-lg sm:text-xl flex items-center justify-center gap-3 shadow-[0_0_25px_rgba(79,70,229,0.4)] transition-all active:scale-95">
                     <i class="fa-solid fa-play"></i> ULLE VAA!
                 </button>
             </div>`;
@@ -416,12 +526,13 @@
                 <h2 class="text-2xl sm:text-3xl text-red-400 font-black mb-4 animate-pulse-fast uppercase tracking-widest">Maraichiko!</h2>
                 <p class="text-red-300/80 font-bold text-sm sm:text-base mb-8">Pakkathula yaru paakuranga nu check pannu!</p>
                 
-                <div class="text-[8rem] sm:text-[10rem] leading-none font-black text-white drop-shadow-[0_0_40px_rgba(255,255,255,0.8)] transform scale-125">
+                <div class="text-[8rem] sm:text-[10rem] leading-none font-black text-white drop-shadow-[0_0_40px_rgba(255,255,255,0.8)] transform scale-125 transition-transform duration-200">
                     ${state.countdown > 0 ? state.countdown : 'GO!'}
                 </div>
             </div>`;
         }
-function renderReveal() {
+
+        function renderReveal() {
             const currentPlayer = state.players[state.currentPlayerIndex];
             const currentRole = state.assignedRoles[currentPlayer.id];
             
@@ -634,7 +745,8 @@ function renderReveal() {
                 <div class="w-full max-h-[40vh] overflow-y-auto pr-1 space-y-2.5 mb-8 text-left z-10 pb-2">
                     ${playerRows}
                 </div>
-                   <button onclick="resetGame()" class="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-black text-base sm:text-lg flex items-center justify-center gap-3 shadow-[0_0_25px_rgba(147,51,234,0.4)] transition-all active:scale-95 z-10">
+
+                <button onclick="resetGame()" class="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-black text-base sm:text-lg flex items-center justify-center gap-3 shadow-[0_0_25px_rgba(147,51,234,0.4)] transition-all active:scale-95 z-10">
                     <i class="fa-solid fa-rotate-left"></i> THIRUMBA AADALAM!
                 </button>
             </div>`;
