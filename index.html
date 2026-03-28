@@ -33,6 +33,13 @@
         .animate-pulse-fast {
             animation: pulse-fast 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-slide-up {
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
 
         /* Base styles optimized for mobile */
         body {
@@ -42,11 +49,11 @@
             background-color: #020617; /* slate-950 */
             color: white;
             font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            overflow-x: hidden; /* Prevent horizontal scroll, allow vertical */
+            overflow-x: hidden; 
         }
 
         /* Inputs should allow text selection */
-        input {
+        input, .selectable-text {
             user-select: text;
             -webkit-user-select: text;
         }
@@ -59,7 +66,7 @@
             background: transparent;
         }
         ::-webkit-scrollbar-thumb {
-            background: rgba(59, 130, 246, 0.5); /* Blue-500 with opacity */
+            background: rgba(59, 130, 246, 0.5); 
             border-radius: 10px;
         }
         ::-webkit-scrollbar-thumb:hover {
@@ -84,21 +91,130 @@
         <div class="absolute bottom-[-10%] right-[-20%] w-[90vw] h-[90vw] rounded-full bg-purple-900/15 blur-[120px]"></div>
     </div>
 
-    <!-- Top Bar -->
-    <div id="top-bar" class="fixed top-0 left-0 right-0 p-4 flex justify-between items-center z-30 max-w-md mx-auto w-full hidden animate-[fade-in_0.5s_ease-out]">
+    <!-- Info Button (Visible on Landing/Setup) -->
+    <button id="info-btn" onclick="toggleInfo()" class="fixed top-4 right-4 z-40 bg-slate-800/80 hover:bg-slate-700 text-blue-400 w-12 h-12 rounded-full border border-slate-600 shadow-lg backdrop-blur-md transition-all active:scale-90 flex items-center justify-center hidden">
+        <i class="fa-solid fa-circle-info text-xl"></i>
+    </button>
+
+    <!-- Top Bar (Visible in Game) -->
+    <div id="top-bar" class="fixed top-4 left-0 right-0 px-4 flex justify-between items-center z-30 max-w-md mx-auto w-full hidden animate-[fade-in_0.5s_ease-out]">
         <div class="glass-panel px-4 py-2 rounded-full flex items-center gap-2 shadow-lg border-slate-700/50">
             <i class="fa-solid fa-trophy text-yellow-500 text-sm"></i>
             <span id="round-indicator" class="text-white font-black text-sm tracking-widest">R 1/5</span>
         </div>
         
-        <button onclick="exitGame()" class="bg-slate-900/80 hover:bg-red-900/50 text-red-400 p-3 rounded-full border border-slate-700 hover:border-red-500/50 transition-all active:scale-90 shadow-lg backdrop-blur-md" title="Exit Game">
-            <i class="fa-solid fa-power-off"></i>
+        <button onclick="openPauseMenu()" class="bg-slate-900/80 hover:bg-slate-800 text-slate-300 w-12 h-12 rounded-full border border-slate-700 transition-all active:scale-90 shadow-lg backdrop-blur-md flex items-center justify-center" title="Menu">
+            <i class="fa-solid fa-ellipsis-vertical text-xl"></i>
         </button>
     </div>
 
-    <!-- Main Content Area (Added padding bottom for watermark) -->
+    <!-- Main Content Area -->
     <div id="app" class="relative z-10 w-full max-w-md mx-auto flex flex-col justify-center items-center min-h-screen px-4 pb-24 pt-16">
         <!-- Rendered by JS -->
+    </div>
+
+    <!-- Pause Menu Modal -->
+    <div id="pause-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex-col items-center justify-end sm:justify-center transition-opacity duration-300">
+        <div class="glass-panel w-full max-w-md flex flex-col rounded-t-3xl sm:rounded-3xl border border-slate-700 overflow-hidden animate-slide-up shadow-[0_0_50px_rgba(0,0,0,0.8)] pb-6 sm:pb-0">
+            <!-- Modal Header -->
+            <div class="p-5 border-b border-slate-700/50 flex justify-between items-center bg-slate-900/80">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-pause text-blue-400 text-xl"></i>
+                    <h2 class="text-xl font-black text-white tracking-wider">Game Paused</h2>
+                </div>
+                <button onclick="closePauseMenu()" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="p-6 space-y-4">
+                <button onclick="closePauseMenu()" class="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all active:scale-95">
+                    <i class="fa-solid fa-play"></i> Resume Game
+                </button>
+                <button onclick="restartMatch()" class="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-3 border border-slate-600 transition-all active:scale-95">
+                    <i class="fa-solid fa-rotate-right"></i> Restart Match
+                </button>
+                <button onclick="endMatchEarly()" class="w-full py-4 bg-yellow-600/10 hover:bg-yellow-600/20 text-yellow-500 rounded-2xl font-black text-lg flex items-center justify-center gap-3 border border-yellow-500/30 transition-all active:scale-95">
+                    <i class="fa-solid fa-flag-checkered"></i> Show Final Results
+                </button>
+                <button onclick="exitToMainMenu()" class="w-full py-4 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-2xl font-black text-lg flex items-center justify-center gap-3 border border-red-500/30 transition-all active:scale-95">
+                    <i class="fa-solid fa-right-from-bracket"></i> Exit to Main Menu
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Modal -->
+    <div id="info-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex-col items-center justify-end sm:justify-center transition-opacity duration-300">
+        <div class="glass-panel w-full max-w-md max-h-[85vh] flex flex-col rounded-t-3xl sm:rounded-3xl border border-slate-700 overflow-hidden animate-slide-up shadow-[0_0_50px_rgba(0,0,0,0.8)]">
+            <!-- Modal Header -->
+            <div class="p-5 border-b border-slate-700/50 flex justify-between items-center bg-slate-900/80">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-circle-info text-blue-400 text-xl"></i>
+                    <h2 class="text-xl font-black text-white tracking-wider">Game Info</h2>
+                </div>
+                <button onclick="toggleInfo()" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="p-6 overflow-y-auto space-y-8 pb-10">
+                
+                <!-- How to Play -->
+                <div>
+                    <h3 class="text-lg font-black text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-gamepad"></i> How to Play
+                    </h3>
+                    <ol class="space-y-4 text-sm text-slate-300 font-medium">
+                        <li class="flex gap-3">
+                            <span class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 font-black text-xs">1</span>
+                            <p>Enter names and select rounds. Roles are assigned secretly.</p>
+                        </li>
+                        <li class="flex gap-3">
+                            <span class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 font-black text-xs">2</span>
+                            <p>Pass the phone to the person named on screen. <span class="text-red-400 font-bold">Hide the screen</span> from others to view your secret role!</p>
+                        </li>
+                        <li class="flex gap-3">
+                            <span class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 font-black text-xs">3</span>
+                            <p>Once everyone has seen their roles, the <span class="text-blue-400 font-bold">Police</span> must look at everyone's real-life facial expressions and guess who the <span class="text-red-400 font-bold">Thirudan (Thief)</span> is.</p>
+                        </li>
+                        <li class="flex gap-3">
+                            <span class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 font-black text-xs">4</span>
+                            <p>Right guess = 500 pts for Police. Wrong guess = 500 pts for Thirudan!</p>
+                        </li>
+                    </ol>
+                </div>
+
+                <!-- About Creator -->
+                <div class="bg-slate-900/50 p-5 rounded-2xl border border-slate-700/50">
+                    <h3 class="text-lg font-black text-purple-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-laptop-code"></i> About Creator
+                    </h3>
+                    <p class="text-sm text-slate-300 font-medium leading-relaxed mb-4">
+                        Hi, I’m <span class="text-white font-bold">Maria Antony Selvam S</span>, a 1st-year BCA student at Kamaraj College. I’m passionate about web development and enjoy building creative projects using HTML, CSS, JavaScript, Python, and SQL.<br><br>
+                        I love developing web apps, simple games, and mobile apps using MIT App Inventor. I’m always learning new technologies and improving my skills to become a full-stack developer.
+                    </p>
+                    <a href="https://selvam2442.github.io/Personal-details/" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-blue-300 font-bold text-sm transition-colors active:scale-95 selectable-text">
+                        <i class="fa-solid fa-globe"></i> Visit My Portfolio
+                    </a>
+                </div>
+
+                <!-- Support/Donate -->
+                <div>
+                    <h3 class="text-lg font-black text-emerald-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-heart"></i> Support My Work
+                    </h3>
+                    <p class="text-sm text-slate-400 mb-4 font-medium">If you enjoyed the game, consider supporting my coding journey!</p>
+                    
+                    <a href="upi://pay?pa=selvam.m.s.k2442@okhdfcbank&pn=Maria%20Antony%20Selvam%20S&cu=INR" class="w-full py-4 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white rounded-xl font-black text-lg flex items-center justify-center gap-3 shadow-lg shadow-emerald-500/20 transition-all active:scale-95">
+                        <i class="fa-brands fa-google-pay text-2xl"></i> Support via UPI
+                    </a>
+                    <p class="text-center text-xs text-slate-500 mt-3 font-semibold selectable-text">UPI ID: selvam.m.s.k2442@okhdfcbank</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Persistent Watermark -->
@@ -154,7 +270,7 @@
             } 
             else if (type === 'go') {
                 osc.type = 'square';
-                osc.frequency.setValueAtTime(880, now); // A5 (High pitch)
+                osc.frequency.setValueAtTime(880, now); // A5
                 gain.gain.setValueAtTime(0.1, now);
                 gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
                 osc.start(now);
@@ -179,18 +295,14 @@
                 osc.stop(now + 0.3);
             }
             else if (type === 'win') {
-                // Retro Arpeggio (Level Up Sound)
                 osc.type = 'square';
                 gain.gain.setValueAtTime(0.1, now);
-                
-                osc.frequency.setValueAtTime(440, now); // A4
-                osc.frequency.setValueAtTime(554.37, now + 0.1); // C#5
-                osc.frequency.setValueAtTime(659.25, now + 0.2); // E5
-                osc.frequency.setValueAtTime(880, now + 0.3); // A5
-                
+                osc.frequency.setValueAtTime(440, now); 
+                osc.frequency.setValueAtTime(554.37, now + 0.1); 
+                osc.frequency.setValueAtTime(659.25, now + 0.2); 
+                osc.frequency.setValueAtTime(880, now + 0.3); 
                 gain.gain.linearRampToValueAtTime(0.1, now + 0.6);
                 gain.gain.exponentialRampToValueAtTime(0.01, now + 1.2);
-                
                 osc.start(now);
                 osc.stop(now + 1.2);
             }
@@ -208,7 +320,7 @@
 
         // --- STATE MANAGEMENT ---
         const state = {
-            gameState: 'LANDING', // LANDING, SETUP, PASS, COUNTDOWN, REVEAL, GUESS, ROUND_END, GAME_OVER
+            gameState: 'LANDING', 
             playerCount: 4,
             totalRounds: 5,
             currentRound: 1,
@@ -218,29 +330,85 @@
             currentPlayerIndex: 0,
             countdown: 3,
             guessResult: null,
-            timerInterval: null
+            timerInterval: null,
+            showInfo: false,
+            isPaused: false
         };
 
-        // --- FULLSCREEN LOGIC ---
-        window.enterFullscreenAndStart = async function() {
+        // --- MODAL & MENU LOGIC ---
+        window.toggleInfo = function() {
             playSound('click');
-            try {
-                if (document.documentElement.requestFullscreen) {
-                    await document.documentElement.requestFullscreen();
-                } else if (document.documentElement.webkitRequestFullscreen) { /* Safari */
-                    await document.documentElement.webkitRequestFullscreen();
-                } else if (document.documentElement.msRequestFullscreen) { /* IE11 */
-                    await document.documentElement.msRequestFullscreen();
-                }
-            } catch (err) {
-                console.warn("Fullscreen API not supported or blocked, continuing game.", err);
+            state.showInfo = !state.showInfo;
+            const modal = document.getElementById('info-modal');
+            if (state.showInfo) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
             }
-            state.gameState = 'SETUP';
+        };
+
+        window.openPauseMenu = function() {
+            playSound('click');
+            state.isPaused = true;
+            if (state.timerInterval) {
+                clearInterval(state.timerInterval);
+                state.timerInterval = null;
+            }
+            const modal = document.getElementById('pause-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        window.closePauseMenu = function() {
+            playSound('click');
+            state.isPaused = false;
+            const modal = document.getElementById('pause-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            
+            // Resume countdown if it was paused
+            if (state.gameState === 'COUNTDOWN') {
+                state.timerInterval = setInterval(() => {
+                    state.countdown--;
+                    if (state.countdown > 0) {
+                        playSound('beep');
+                        render();
+                    } else if (state.countdown === 0) {
+                        playSound('go');
+                        render(); 
+                        clearInterval(state.timerInterval);
+                        setTimeout(() => {
+                            state.gameState = 'REVEAL';
+                            render();
+                        }, 800); 
+                    }
+                }, 1000);
+            }
+        };
+
+        window.restartMatch = function() {
+            playSound('click');
+            closePauseMenu();
+            state.currentRound = 1;
+            // Reset scores to 0
+            state.players = state.players.map(p => ({ ...p, score: 0 }));
+            startNewRound();
+        };
+
+        window.endMatchEarly = function() {
+            playSound('click');
+            closePauseMenu();
+            playSound('win');
+            state.gameState = 'GAME_OVER';
+            window.scrollTo(0, 0);
             render();
         };
 
-        window.exitGame = async function() {
+        window.exitToMainMenu = async function() {
             playSound('click');
+            closePauseMenu();
             try {
                 if (document.exitFullscreen && document.fullscreenElement) {
                     await document.exitFullscreen();
@@ -253,6 +421,22 @@
             state.gameState = 'LANDING';
             state.players = [];
             state.currentRound = 1;
+            render();
+        };
+
+        // --- FULLSCREEN LOGIC ---
+        window.enterFullscreenAndStart = async function() {
+            playSound('click');
+            try {
+                if (document.documentElement.requestFullscreen) {
+                    await document.documentElement.requestFullscreen();
+                } else if (document.documentElement.webkitRequestFullscreen) {
+                    await document.documentElement.webkitRequestFullscreen();
+                } else if (document.documentElement.msRequestFullscreen) {
+                    await document.documentElement.msRequestFullscreen();
+                }
+            } catch (err) {}
+            state.gameState = 'SETUP';
             render();
         };
 
@@ -308,7 +492,7 @@
         }
 
         window.startCountdown = function() {
-            playSound('beep'); // Initial beep for 3
+            playSound('beep'); 
             state.gameState = 'COUNTDOWN';
             state.countdown = 3;
             render();
@@ -322,12 +506,12 @@
                     render();
                 } else if (state.countdown === 0) {
                     playSound('go');
-                    render(); // Render GO!
+                    render(); 
                     clearInterval(state.timerInterval);
                     setTimeout(() => {
                         state.gameState = 'REVEAL';
                         render();
-                    }, 800); // Wait slightly on GO before revealing
+                    }, 800); 
                 }
             }, 1000);
         };
@@ -373,12 +557,13 @@
 
             state.players = updatedPlayers;
             render();
+        };
 
-            setTimeout(() => {
-                state.gameState = 'ROUND_END';
-                window.scrollTo(0, 0);
-                render();
-            }, 4000);
+        window.proceedToScore = function() {
+            playSound('click');
+            state.gameState = 'ROUND_END';
+            window.scrollTo(0, 0);
+            render();
         };
 
         window.handleNextRound = function() {
@@ -407,7 +592,7 @@
         function renderLanding() {
             return `
             <div class="glass-panel flex flex-col items-center justify-center w-full p-8 sm:p-10 rounded-[2.5rem] text-center transition-all duration-500 animate-[fade-in_0.6s_ease-out]">
-                <div class="relative mb-8 group">
+                <div class="relative mb-8 group mt-4">
                     <div class="absolute -inset-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full blur-xl opacity-50 animate-pulse-fast"></div>
                     <div class="relative bg-slate-900 w-24 h-24 flex items-center justify-center rounded-full border border-slate-700 shadow-inner">
                         <i class="fa-solid fa-shield-halved text-5xl text-blue-400 drop-shadow-[0_0_10px_rgba(96,165,250,0.8)]"></i>
@@ -620,6 +805,13 @@
                         </div>
                     </div>`;
                 }
+                
+                // Add Continue Button manually
+                contentHtml += `
+                <button onclick="proceedToScore()" class="w-full mt-6 py-4 bg-blue-600 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all active:scale-95 z-10 relative">
+                    Continue <i class="fa-solid fa-arrow-right"></i>
+                </button>`;
+                
             } else {
                 const buttons = state.players.filter(p => p.id !== policePlayerId).map(player => `
                     <button onclick="handlePoliceGuess('${player.id}')" class="relative flex flex-col items-center justify-center p-4 sm:p-6 bg-slate-800/80 hover:bg-slate-700 rounded-2xl border border-slate-600 transition-all active:scale-95 group overflow-hidden shadow-lg">
@@ -637,8 +829,8 @@
 
             return `
             <div class="glass-panel flex flex-col items-center w-full p-6 sm:p-8 rounded-[2.5rem] border-blue-500/40 relative overflow-hidden">
-                <div class="absolute top-0 right-0 w-48 h-48 bg-red-500/10 rounded-full blur-[60px] animate-pulse-fast"></div>
-                <div class="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full blur-[60px] animate-pulse-fast"></div>
+                <div class="absolute top-0 right-0 w-48 h-48 bg-red-500/10 rounded-full blur-[60px] animate-pulse-fast pointer-events-none"></div>
+                <div class="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full blur-[60px] animate-pulse-fast pointer-events-none"></div>
                 
                 <div class="flex items-center gap-2 mb-4 z-10 bg-blue-900/40 px-5 py-2 rounded-full border border-blue-500/30 shadow-inner">
                     <i class="fa-solid fa-magnifying-glass text-lg text-blue-400 animate-pulse-fast"></i>
@@ -647,7 +839,7 @@
                 
                 <h1 class="text-xl sm:text-2xl font-bold text-white mb-6 text-center z-10 leading-relaxed">
                     Police <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 font-black text-2xl sm:text-3xl block mt-1 drop-shadow-lg">${policePlayer ? policePlayer.name : ''}</span>
-                    <span class="block mt-2 text-slate-400 text-sm sm:text-base font-semibold bg-slate-900/50 rounded-lg py-1 px-3 inline-block border border-slate-700">Thirudan Yaru nu Kandupidi!</span>
+                    ${!state.guessResult ? `<span class="block mt-2 text-slate-400 text-sm sm:text-base font-semibold bg-slate-900/50 rounded-lg py-1 px-3 inline-block border border-slate-700">Thirudan Yaru nu Kandupidi!</span>` : ''}
                 </h1>
 
                 ${contentHtml}
@@ -757,6 +949,14 @@
             const app = document.getElementById('app');
             const topBar = document.getElementById('top-bar');
             const roundIndicator = document.getElementById('round-indicator');
+            const infoBtn = document.getElementById('info-btn');
+
+            // Manage Info Button Visibility
+            if (state.gameState === 'LANDING' || state.gameState === 'SETUP') {
+                infoBtn.classList.remove('hidden');
+            } else {
+                infoBtn.classList.add('hidden');
+            }
 
             // Manage Top Bar
             if (state.gameState !== 'LANDING' && state.gameState !== 'SETUP') {
